@@ -6,8 +6,6 @@ from tqdm import tqdm
 from config import *
 
 
-##
-
 def kl_div(source, target, reduction='batchmean'):
     loss = F.kl_div(F.log_softmax(source, 1), target, reduction=reduction)
     return loss
@@ -18,10 +16,10 @@ def LossPredLoss(input, target, margin=1.0, reduction='mean'):
     assert len(input) % 2 == 0, 'the batch size is not even.'
     assert input.shape == input.flip(0).shape
     criterion = nn.BCELoss()
-    input = (input - input.flip(0))[
-            :len(input) // 2]  # [l_1 - l_2B, l_2 - l_2B-1, ... , l_B - l_B+1], where batch_size = 2B
+    input = (input - input.flip(0))[:len(input) // 2]
     target = (target - target.flip(0))[:len(target) // 2]
     target = target.detach()
+
     diff = torch.sigmoid(input)
     one = torch.sign(torch.clamp(target, min=0))  # 1 operation which is defined by the authors
 
@@ -35,7 +33,7 @@ def LossPredLoss(input, target, margin=1.0, reduction='mean'):
     return loss
 
 
-def test(models, epoch, method, dataloaders, mode='val'):
+def test(models, method, dataloaders, mode='val'):
     assert mode in ['val', 'test']
     models['backbone'].eval()
 
@@ -127,8 +125,7 @@ def train(models, method, criterion, optimizers, schedulers, dataloaders, num_ep
             schedulers['module'].step()
 
         if False and epoch % 20 == 7:
-            acc = test(models, epoch, method, dataloaders, mode='test')
-            # acc = test(models, dataloaders, mc, 'test')
+            acc = test(models, method, dataloaders, mode='test')
             if best_acc < acc:
                 best_acc = acc
                 print('Val Acc: {:.3f} \t Best Acc: {:.3f}'.format(acc, best_acc))

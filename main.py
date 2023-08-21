@@ -12,16 +12,16 @@ import os
 
 # Custom
 import models.resnet as resnet
-from models.query_models import LossNet
+from models.query_models import TDNet
 from train_test.train_test import train, test
-from data.load_dataset import load_dataset, sync_dataset
+from data.load_dataset import load_dataset
 from methods.selection_methods import query_samples
 from config import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--dataset", type=str, default="cifar10",
                     help="cifar10 / cifar100")
-parser.add_argument("-i", "--imb_factor", type=int, default=100,
+parser.add_argument("-i", "--imb_factor", type=int, default=1,
                     help="1 / 10 / 100")
 parser.add_argument("--init_dist", type=str, default='random',
                     help="uniform / random.")
@@ -36,8 +36,10 @@ parser.add_argument("--seed", type=int, default=0,
                     help="Training seed.")
 parser.add_argument("--subset", type=int, default=10000,
                     help="The size of subset.")
-parser.add_argument("-q", "--query", type=str, default="Entropy",
-                    help="The size of subset.")
+parser.add_argument("-q", "--query", type=str, default='Entropy',
+                    help="The size of subset. [Entropy, AUM]")
+parser.add_argument("-w", "--num_workers", type=str, default=0,
+                    help="The number of workers.")
 
 args = parser.parse_args()
 
@@ -52,37 +54,20 @@ if args.imb_factor == 1:
     args.add_num = {
         'cifar10': 1000,
         'cifar100': 2000,
-        'fashionmnist': 1000,
-        'svhn': 1000,
-        'tiny-imagenet': 5000,
-        'iNaturalist18': 20000,
     }[args.dataset]
 else:
     args.add_num = {
         'cifar10': 500,
         'cifar100': 1000,
-        'fashionmnist': 500,
-        'svhn': 500,
-        'tiny-imagenet': 5000,
     }[args.dataset]
 
 args.subset = {
     'cifar10': 10000,
     'cifar100': 10000,
-    'fashionmnist': 10000,
-    'svhn': 10000,
-    'tiny-imagenet': 20000,
-    'iNaturalist18': 100000,
 }[args.dataset]
 
-if args.dataset == 'tiny-imagenet':
-    args.initial_size = 10000
-else:
-    args.initial_size = args.add_num
+args.initial_size = args.add_num
 
-args.num_workers = 4 if args.dataset == 'iNaturalist18' else 0
-
-##
 # Main
 if __name__ == '__main__':
 
@@ -131,14 +116,14 @@ if __name__ == '__main__':
         with torch.cuda.device(CUDA_VISIBLE_DEVICES):
             resnet_ = resnet.ResNet18(num_classes=NO_CLASSES)
 
-            if (method == 'lloss') or (method == 'TiDAL'):
-                # loss_module = LossNet(feature_sizes=[16,8,4,2], num_channels=[128,128,256,512]).cuda()
-                out_dim = NO_CLASSES if (method == 'TiDAL') else 1
-                pred_module = LossNet(out_dim=out_dim)
+            if method in ['TiDAL', 'lloss']:
+                out_dim = NO_CLASSES if method == 'TiDAL' else 1
+                pred_module = TDNet(out_dim=out_dim)
 
-        models = {'backbone': resnet_}
-        if (method == 'lloss') or (method == 'TiDAL'):
+        if method in ['TiDAL', 'lloss']:
             models = {'backbone': resnet_, 'module': pred_module}
+        else:
+            models = {'backbone': resnet_}
 
         # Loss, criterion and scheduler (re)initialization
         criterion = {}
@@ -158,16 +143,17 @@ if __name__ == '__main__':
             torch.backends.cudnn.benchmark = True
             optim_backbone = optim.SGD(models['backbone'].parameters(), lr=LR,
                                        momentum=MOMENTUM, weight_decay=WDECAY)
-
             sched_backbone = lr_scheduler.MultiStepLR(optim_backbone, milestones=MILESTONES)
-            optimizers = {'backbone': optim_backbone}
-            schedulers = {'backbone': sched_backbone}
-            if (method == 'lloss') or (method == 'TiDAL'):
+
+            if method in ['TiDAL', 'lloss']:
                 optim_module = optim.SGD(models['module'].parameters(), lr=LR,
                                          momentum=MOMENTUM, weight_decay=WDECAY)
                 sched_module = lr_scheduler.MultiStepLR(optim_module, milestones=MILESTONES)
                 optimizers = {'backbone': optim_backbone, 'module': optim_module}
                 schedulers = {'backbone': sched_backbone, 'module': sched_module}
+            else:
+                optimizers = {'backbone': optim_backbone}
+                schedulers = {'backbone': sched_backbone}
 
             # Training and testing
             train(models, method, criterion, optimizers, schedulers, dataloaders, EPOCH, EPOCHL)
@@ -187,7 +173,6 @@ if __name__ == '__main__':
             # Update the labeled dataset and the unlabeled dataset, respectively
             new_list = list(torch.tensor(subset)[arg][:args.add_num].numpy())
 
-            # print(len(new_list), min(new_list), max(new_list))
             labeled_set += list(torch.tensor(subset)[arg][-args.add_num:].numpy())
             listd = list(torch.tensor(subset)[arg][:-args.add_num].numpy())
             unlabeled_set = listd + unlabeled_set[args.subset:]

@@ -3,10 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class LossNet(nn.Module):
-    def __init__(self, feature_sizes=[32, 16, 8, 4], num_channels=[64, 128, 256, 512], interm_dim=128,
-                 out_dim=1):  # Default 128
-        super(LossNet, self).__init__()
+class TDNet(nn.Module):
+    def __init__(self, feature_sizes=[32, 16, 8, 4], num_channels=[64, 128, 256, 512], interm_dim=128, out_dim=1):
+        super(TDNet, self).__init__()
 
         self.GAP1 = nn.AvgPool2d(feature_sizes[0])
         self.GAP2 = nn.AvgPool2d(feature_sizes[1])
@@ -23,10 +22,9 @@ class LossNet(nn.Module):
         self.BN3 = nn.BatchNorm1d(interm_dim)
         self.BN4 = nn.BatchNorm1d(interm_dim)
 
-        # self.linear = nn.Linear(64+ 128+ 256+ 512, out_dim)
         self.linear = nn.Linear(4 * interm_dim, out_dim)
 
-    def forward(self, features, method=None):
+    def forward(self, features):
         out1 = self.GAP1(features[0])
         out1 = out1.view(out1.size(0), -1)
         out1 = F.relu(self.FC1(out1))

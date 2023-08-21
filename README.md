@@ -1,28 +1,18 @@
-# Learning Training Dynamics for Active Learning
+# TiDAL: Learning Training Dynamics for Active Learning
 
 ## Prerequisites:   
 - Linux or macOS
-- Python 3.5/3.6
+- Python 3.10
 - CPU compatible but NVIDIA GPU + CUDA CuDNN is highly recommended.
-- pytorch 0.4.1
-- cuda 8.0
-- Anaconda3
 
-## Requirements
+## Installation
 
-To install virtual enviornment for requirements:
+Install required Python packages
 
-```setup
-conda env create -f TiDAL.yaml
+```
+pip install requirements.txt
 ```
 
-> 📋if you already conda, you can activate virtual experiment settings
-
-To activate virtual enviornment:
-
-```activate
-conda activate TiDAL
-```
 
 ## Running code
 

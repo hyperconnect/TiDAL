@@ -1,10 +1,11 @@
 import torch
 import torchvision.transforms as T
 from torch.utils.data import Dataset
-from torchvision.datasets import CIFAR100, CIFAR10, FashionMNIST, SVHN
+from torchvision.datasets import CIFAR100, CIFAR10
 
-from utils.make_imbalance import *
 from config import *
+from utils.make_imbalance import *
+
 
 class MyDataset(Dataset):
     def __init__(self, dataset_name, train_flag=None, transf=None, args=None):
@@ -52,7 +53,8 @@ class MyDataset(Dataset):
             self.dataset.unlabeled_data = temp_data[unlabel_idx]
             self.dataset.unlabeled_targets = list(np.array(temp_targets)[unlabel_idx])
 
-            self.img_num_per_cls = get_img_num_per_cls_unif(self.dataset, cls_num=nb_classes, imb_factor=args.imb_factor)
+            self.img_num_per_cls = get_img_num_per_cls_unif(self.dataset, cls_num=nb_classes,
+                                                            imb_factor=args.imb_factor)
             self.dataset = gen_imbalanced_data_unif(self.dataset, self.img_num_per_cls)
 
     def __getitem__(self, index):
@@ -107,6 +109,7 @@ def load_dataset(args):
         NO_CLASSES = 10
         NUM_TRAIN = len(data_train)
         no_train = NUM_TRAIN
+
     elif dataset == 'cifar100':
         data_train = MyDataset(dataset, train_flag=True, transf=train_transform, args=args)
         data_unlabeled = MyDataset(dataset, train_flag=True, transf=test_transform)
